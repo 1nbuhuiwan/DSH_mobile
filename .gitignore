@@ -15,3 +15,12 @@ app/debug.keystore
 # 发布签名配置（含密码，勿提交）
 keystore.properties
 *.jks
+
+# 常见密钥/凭据文件（保险起见，勿提交）
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.crt
+secrets.*
