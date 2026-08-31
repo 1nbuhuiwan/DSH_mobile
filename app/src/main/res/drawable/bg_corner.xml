@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 扫码取景框角标（左上角），通过 ImageView 旋转复用为四角 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <!-- 顶部横条 -->
+    <path android:fillColor="@color/ds_corner"
+        android:pathData="M0,0h48v7h-41v41h-7z" />
+    <!-- 左侧竖条 -->
+    <path android:fillColor="@color/ds_corner"
+        android:pathData="M0,0h7v48h41v-7h-48z" />
+</vector>

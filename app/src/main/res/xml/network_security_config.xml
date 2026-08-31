@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  浏览器会访问局域网 / 隧道中的 DSH Desktop：
+  - WiFi 配对链接形如 http://<局域网IP>:<端口>/pair?token=...
+  - 隧道链接为 https://...
+  因此允许明文 HTTP（局域网配对）以及 HTTPS。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

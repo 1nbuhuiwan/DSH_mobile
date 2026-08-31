@@ -1,0 +1,17 @@
+.gradle/
+.gradle-gu/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+*.log
+.kotlin/
+
+# 调试签名密钥（Android Studio 会自动生成，勿提交）
+*.keystore
+app/debug.keystore
+
+# 发布签名配置（含密码，勿提交）
+keystore.properties
+*.jks

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DeepSeek / DSH 设计令牌（暗色） -->
+<resources>
+    <color name="ds_bg">#141416</color>          <!-- bg -->
+    <color name="ds_surface">#1D1D20</color>     <!-- surface -->
+    <color name="ds_panel">#202023</color>       <!-- panel -->
+    <color name="ds_ink">#F5F5F6</color>         <!-- ink -->
+    <color name="ds_muted">#95979D</color>       <!-- muted -->
+    <color name="ds_line">#303034</color>        <!-- line -->
+    <color name="ds_brand">#6F86FF</color>       <!-- brand -->
+    <color name="ds_brand_press">#8AA0FF</color>
+    <color name="ds_brand_ink">#141416</color>
+
+    <color name="ds_success_bg">#17261D</color>
+    <color name="ds_success_ink">#75C991</color>
+    <color name="ds_warn">#DF9275</color>
+    <color name="ds_error">#F26D77</color>
+
+    <color name="ds_scrim">#CC0F0F12</color>
+    <color name="ds_corner">#8AA0FF</color>
+
+    <color name="ds_toolbar_btn">#00000000</color>
+</resources>

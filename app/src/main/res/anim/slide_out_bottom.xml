@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 活动退出：滑向屏幕底部 + 淡出 -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/accelerate_cubic">
+    <translate
+        android:fromYDelta="0"
+        android:toYDelta="100%p"
+        android:duration="240" />
+    <alpha
+        android:fromAlpha="1.0"
+        android:toAlpha="0.5"
+        android:duration="240" />
+</set>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DSH 手机端</string>
+    <string name="app_subtitle">DeepSeek Harness Remote</string>
+
+    <string name="home_heading">连接 DeepSeek</string>
+    <string name="home_lead">扫码，将手机接入 DeepSeek Harness，在手机上继续对话。</string>
+
+    <string name="home_scan_title">扫码连接</string>
+    <string name="home_scan_sub">在 DSH Desktop 中打开「连接移动设备」，用手机扫描二维码。</string>
+
+    <string name="home_manual_hint">或者手动输入地址</string>
+    <string name="home_address_hint">http://192.168.1.10:PORT</string>
+    <string name="home_connect">连接</string>
+
+    <string name="toast_no_camera">无法访问相机，请在系统设置中授予相机权限。</string>
+    <string name="toast_invalid_url">无法识别的地址。</string>
+    <string name="toast_need_scan">请扫描 DSH Desktop 中的配对二维码。</string>
+
+    <string name="scan_hint">对准二维码以连接 DeepSeek Harness</string>
+    <string name="scan_cancel">取消</string>
+    <string name="scan_torch">手电</string>
+    <string name="scan_permission_denied">未授予相机权限</string>
+
+    <string name="toolbar_search">搜索或输入网址</string>
+
+    <string name="image_send_title">发送图片</string>
+    <string name="image_caption_hint">输入描述文字（可留空）</string>
+    <string name="image_send">发送</string>
+    <string name="image_cancel">取消</string>
+</resources>
