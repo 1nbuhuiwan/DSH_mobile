@@ -76,32 +76,6 @@ DSH Desktop（桌面端）运行时会开一个局域网桥接服务（监听 `0
 
 ---
 
-## 📸 发送图片（本项目最有意思的部分）
-
-### 难点（为什么会卡住）
-
-深挖 Harness 源码后发现，**网页端收图组件 `ComposerAttachments` 只有在会话被判为"支持图片"（`vision`/`canAcceptDrop` 为 true）时才挂载**。而自定义模型名（如 `DeepSeek-V4-Flash-Vision-Exp`）没被 Harness 识别为视觉模型 → **`vision=false` → 收图组件根本不挂载**。于是**连电脑端拖图都无法上传**，且网页输入框是纯 `<textarea>`，**无法粘贴/接收图片**。
-
-尝试过 `onShowFileChooser`、注入「+」按钮、剪贴板、合成 `drop` 事件……全被上述机制 + 浏览器安全限制卡死（合成事件无法携带拖拽处理器可接受的真文件）。❌
-
-### 正解 🏆
-
-**绕开网页 UI，直接调 Harness 自己的会话接口：**
-
-```
-「+」选图 ─► 弹输入框填描述 ─► 页面读图、压缩到 ≤64KB ─► POST /api/rpc 调 session.prompt
-        ─► content = [{type:'image', data(base64), mediaType}, {type:'text', text}] 
-        ─► 直接进会话 → 智能体收到图片 + 文字 ✅
-```
-
-- 手机 WebView 与 Harness **同源且带登录 Cookie**，`fetch('/api/rpc')` 自带鉴权；
-- 通过读取网页全局 **`activeSession`**（手机当前打开的会话）来精准发送到**你正在看**的那个会话；
-- 受桌面端 `/api/rpc` 请求体 **64KB** 上限，图片会在页面里压缩成较小 JPEG。
-
-> 📄 完整排障过程（遇到过的问题、根因、失败尝试、最终方案）见 [`docs/发图片功能开发总结.md`](docs/发图片功能开发总结.md)。
-
----
-
 ## 🎨 设计（与 DeepSeek / DSH 一致）
 
 直接取用 DSH Desktop 的 CSS 设计令牌：
