@@ -8,3 +8,10 @@
 
 # DataBinding / ViewBinding 生成的类名
 -keep class com.dsh.mobile.databinding.** { *; }
+
+# 关键：保留给网页 JS 调用的桥方法（addJavascriptInterface 按方法名反射调用，
+# R8 混淆会把 vibrate/toast/promptForText 改名，导致网页端失效）
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.dsh.mobile.MainActivity$DSHBridge { *; }
