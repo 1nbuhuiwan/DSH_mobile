@@ -35,6 +35,26 @@
 
 ---
 
+## 📥 下载 App（APK）
+
+两种方式获取可安装的 APK：
+
+### 方式一：GitHub Releases（推荐，分享给他人）🌟
+> 本仓库已配置 **CI**：当你打 `v*` 标签（如 `v1.0.0`）时，会自动**构建并签名** Release APK，并发布成 **GitHub Release**。
+
+1. 打开仓库的 **Releases** 页：`https://github.com/1nbuhuiwan/DSH_mobile/releases`
+2. 找到最新版本（如 `v1.0.0`），下载 **`app-release.apk`**（正式、已签名、体积最小）。
+3. 在手机上安装该 APK 即可（Android 需允许"未知来源/外部安装"）。
+
+> 第一次发布：在本地执行 `git tag v1.0.0 && git push origin v1.0.0`，CI 会自动构建并发布 Release。
+
+### 方式二：本地构建
+用 Android Studio 打开本仓库运行，或 `./gradlew assembleDebug`；生成的 `app-debug.apk` 也可安装（调试用）。
+
+> 说明：Release APK 用**构建时临时生成的密钥**签名，不同版本签名不同，升级需先卸载再装；如需长期一致签名，请改用 GitHub Secret 存 keystore（见 `.github/workflows/android.yml`）。
+
+---
+
 ## 🎯 它是怎么工作的
 
 DSH Desktop（桌面端）运行时会开一个局域网桥接服务（监听 `0.0.0.0`，也可经互联网隧道访问）。桌面端「连接移动设备」页会生成一个**二维码**，内容是一段配对链接：

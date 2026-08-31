@@ -3,13 +3,14 @@ name: Android CI
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]          # 打 v* 标签时额外发布 Release
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: 构建 Debug APK
+    name: 构建并发布 APK
     runs-on: ubuntu-latest
 
     steps:
@@ -27,12 +28,36 @@ jobs:
       - name: 授予 gradlew 执行权限
         run: chmod +x ./gradlew
 
-      - name: 构建 Debug APK
-        run: ./gradlew assembleDebug --no-daemon --console=plain
+      - name: 构建 Debug + Release APK
+        run: ./gradlew assembleDebug assembleRelease --no-daemon --console=plain
 
-      - name: 上传 APK 产物
+      - name: 生成签名密钥并签署 Release APK
+        run: |
+          # 用临时密钥对 Release APK 签名（每次构建不同签名；如需长期一致，请后续改用 GitHub Secret 存 keystore）
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner 2>/dev/null | sort -r | head -1)
+          keytool -genkeypair -v -keystore release.keystore -alias dsh \
+            -storepass dshmobile -keypass dshmobile -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=1nbuhuiwan,O=DSH Mobile,C=CN" >/dev/null 2>&1
+          "$APKSIGNER" sign --ks release.keystore \
+            --ks-pass pass:dshmobile --key-pass pass:dshmobile --ks-key-alias dsh \
+            --out app/build/outputs/apk/release/app-release.apk \
+            app/build/outputs/apk/release/app-release-unsigned.apk
+          echo "已签署 Release APK: $(ls -lh app/build/outputs/apk/release/app-release.apk)"
+
+      - name: 上传 Debug APK 产物
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dsh-mobile-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
+
+      # 打 v* 标签时：创建 GitHub Release 并把 APK 作为下载资产
+      - name: 发布 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/debug/*.apk
