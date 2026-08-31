@@ -12,6 +12,8 @@ jobs:
   build:
     name: 构建并发布 APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 允许创建 GitHub Release / 生成 release notes
 
     steps:
       - name: 检出代码
