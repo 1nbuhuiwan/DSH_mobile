@@ -40,13 +40,13 @@
 两种方式获取可安装的 APK：
 
 ### 方式一：GitHub Releases（推荐，分享给他人）🌟
-> 本仓库已配置 **CI**：当你打 `v*` 标签（如 `v1.0.0`）时，会自动**构建并签名** Release APK，并发布成 **GitHub Release**。
+> 本仓库已配置 **CI**：当你打 `v*` 标签（如 `v1.0.1`）时，会自动**构建并签名** Release APK，并发布成 **GitHub Release**。
 
 1. 打开仓库的 **Releases** 页：`https://github.com/1nbuhuiwan/DSH_mobile/releases`
-2. 找到最新版本（如 `v1.0.0`），下载 **`app-release.apk`**（正式、已签名、体积最小）。
+2. 找到最新版本（如 `v1.0.1`），下载 **`app-release.apk`**（正式、已签名、体积最小）。
 3. 在手机上安装该 APK 即可（Android 需允许"未知来源/外部安装"）。
 
-> 第一次发布：在本地执行 `git tag v1.0.0 && git push origin v1.0.0`，CI 会自动构建并发布 Release。
+> 第一次发布：在本地执行 `git tag v1.0.1 && git push origin v1.0.1`，CI 会自动构建并发布 Release。
 
 ### 方式二：本地构建
 用 Android Studio 打开本仓库运行，或 `./gradlew assembleDebug`；生成的 `app-debug.apk` 也可安装（调试用）。
@@ -193,7 +193,7 @@ dsh-mobile/
 
 ## 🔢 版本规范（Versioning）
 
-采用 **语义化版本 `MAJOR.MINOR.PATCH`**（当前 `1.0.0`）。**后续有任何改进建议，请把版本号向后延续**：
+采用 **语义化版本 `MAJOR.MINOR.PATCH`**（当前 `1.0.1`）。**后续有任何改进建议，请把版本号向后延续**：
 
 - 🏗️ 有破坏性大改动 → 升 `MAJOR`（如 `2.0.0`）
 - ✨ 新增功能 → 升 `MINOR`（如 `1.1.0`）
