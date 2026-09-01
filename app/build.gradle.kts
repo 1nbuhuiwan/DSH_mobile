@@ -11,8 +11,8 @@ android {
         applicationId = "com.dsh.mobile"
         minSdk = 24
         targetSdk = 36          // Android 16
-        versionCode = 3
-        versionName = "1.1.0"   // 语义化版本；后续改进请向后延续（见 README「版本规范」）
+        versionCode = 4
+        versionName = "1.1.1"   // 语义化版本；后续改进请向后延续（见 README「版本规范」）
 
         // 应用体积与内存最小化：只保留 arm64/arm + x86_64 的原生库，避免携带冗余 ABI。
         ndk {

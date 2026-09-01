@@ -32,4 +32,8 @@
     <string name="notification_channel_task_done">任务完成提醒</string>
     <string name="notification_task_done_title">任务完成</string>
     <string name="notification_task_done_text">DeepSeek 已完成本次回复</string>
+
+    <string name="notification_channel_monitor">任务监控</string>
+    <string name="notification_monitor_title">正在监控任务</string>
+    <string name="notification_monitor_text">回到 DeepSeek 会话页可查看回复；完成后将通知你</string>
 </resources>

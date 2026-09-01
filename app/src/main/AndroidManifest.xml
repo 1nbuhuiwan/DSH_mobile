@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- 任务完成通知（Android 13+ 需运行时授权） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 前台服务：保持进程存活，后台也能检测任务完成并弹通知 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- 声明相机硬件为可选：无相机设备也能（弱化）使用地址栏浏览器 -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -43,5 +46,11 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.DSHMobile.Scan" />
+
+        <!-- 常驻监控前台服务：保持进程存活以在后台检测任务完成 -->
+        <service
+            android:name=".MonitorService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>

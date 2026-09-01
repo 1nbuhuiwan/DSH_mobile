@@ -2,9 +2,6 @@ package com.dsh.mobile
 
 import android.Manifest
 import android.app.Dialog
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -32,7 +29,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -250,7 +246,21 @@ class MainActivity : AppCompatActivity() {
         showBrowser()
         binding.webView.loadUrl(url)
         saveLastUrl(url)
+        saveDshBase(url)
         updateNavState()
+    }
+
+    /** 记录 DSH 服务基址（scheme://host:port），供前台服务原生轮询会话状态用。 */
+    private fun saveDshBase(url: String) {
+        try {
+            val u = Uri.parse(url)
+            val host = u.host ?: return
+            val port = if (u.port in 1..65535) ":${u.port}" else ""
+            val base = "${u.scheme}://$host$port"
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREFS_DSH_BASE, base).apply()
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     /** 补充协议前缀：局域网 DSH 通常为 http，隧道为 https。 */
@@ -269,6 +279,8 @@ class MainActivity : AppCompatActivity() {
         binding.browserView.visibility = View.VISIBLE
         reveal(binding.browserView)
         updateNavState()
+        // 进入网页/会话页：启动前台监控服务，保持进程存活，后台也能检测任务完成。
+        startMonitorService()
     }
 
     private fun showHome() {
@@ -276,6 +288,8 @@ class MainActivity : AppCompatActivity() {
         binding.homeView.visibility = View.VISIBLE
         reveal(binding.homeView)
         binding.webView.stopLoading()
+        // 回到首页：不再需要后台监控。
+        stopMonitorService()
     }
 
     /** 淡入 + 轻微上移 + 轻微放大的揭示动效。 */
@@ -350,43 +364,36 @@ class MainActivity : AppCompatActivity() {
 
     /** 在桌面端「任务完成」时发一条系统通知，点击回到主界面。 */
     private fun postTaskDoneNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return // 未授权，跳过
-        }
+        NotificationHelper.postTaskDone(this)
+    }
 
-        val channelId = CHANNEL_TASK_DONE
-        val manager = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, getString(R.string.notification_channel_task_done),
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            manager.createNotificationChannel(channel)
-        }
+    // ------------------------------------------------------------ keep-alive
 
-        val launch = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(getString(R.string.notification_task_done_title))
-            .setContentText(getString(R.string.notification_task_done_text))
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setContentIntent(launch)
-            .build()
-
+    /** 启动前台监控服务：保持进程存活，让 WebView 注入脚本在后台仍能检测任务完成。 */
+    private fun startMonitorService() {
         try {
-            manager.notify(NOTIF_ID_TASK_DONE, notification)
+            val intent = Intent(this, MonitorService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
         } catch (e: Exception) {
-            // 通知失败不致命（例如部分 OEM 系统限制），忽略。
+            // 启动前台服务失败不致命：前台时脚本仍能检测；仅后台通知可能失效。
         }
+    }
+
+    private fun stopMonitorService() {
+        try {
+            stopService(Intent(this, MonitorService::class.java))
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopMonitorService()
     }
 
     /** 给注入的网页脚本调用的原生桥：提供触感反馈、提示与日志。 */
@@ -446,10 +453,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREFS = "dsh_mobile"
         private const val PREFS_LAST_URL = "last_url"
-
-        // 任务完成通知
-        private const val CHANNEL_TASK_DONE = "dsh_task_done"
-        private const val NOTIF_ID_TASK_DONE = 1001
+        private const val PREFS_DSH_BASE = "dsh_base"
 
         /**
          * 注入到 DSH 聊天页的脚本：
@@ -702,32 +706,44 @@ class MainActivity : AppCompatActivity() {
     setInterval(install, 1000);
 
     // ---------- 任务完成通知 ----------
-    // DSH 网页在 assistant 消息流式输出时给元素加 data-streaming="true"；
-    // 回合结束（data.status 不再是 running）后该属性被移除。轮询捕捉
-    // 「出现 → 消失」的转换，即认为一次 DeepSeek 回复完成，通知原生侧发系统通知。
-    var dshStreamingSeenAt = 0;
-    var dshDoneNotified = false;
-    function dshAnyStreaming() {
-      return document.querySelectorAll('[data-streaming]').length > 0;
+    // 直接轮询 DSH 自有接口 /api/rpc session.list（每个会话带 running 布尔，
+    // 表示该会话的 Agent 是否正在跑），捕捉「running=true → false」的转换，
+    // 即认为一次 DeepSeek 回复完成。比读页面 DOM 更可靠，不受页面结构变化影响。
+    var dshWasRunning = null;
+    function dshFetchActiveRunning() {
+      return new Promise(function (resolve) {
+        try {
+          window.fetch('/api/rpc', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ method: 'session.list', payload: {} })
+          }).then(function (r) { return r.json(); }).then(function (j) {
+            var items = (j && j.value && j.value.items) || [];
+            var sid = null;
+            try { if (typeof activeSession !== 'undefined' && activeSession) sid = String(activeSession); } catch (e) {}
+            var target = null;
+            for (var i = 0; i < items.length; i++) { if (items[i].sessionId === sid) { target = items[i]; break; } }
+            if (!target) for (var i = 0; i < items.length; i++) { if (items[i].running) { target = items[i]; break; } }
+            if (!target && items.length) target = items[0];
+            resolve(target ? !!target.running : null);
+          }).catch(function () { resolve(null); });
+        } catch (e) { resolve(null); }
+      });
     }
-    function dshWatchTaskDone() {
-      try {
-        if (dshAnyStreaming()) {
-          dshStreamingSeenAt = Date.now();
-          dshDoneNotified = false;          // 新一轮开始，允许再次通知
-          return;
-        }
-        // 曾处于生成中，且停止超过 1.2s 且本次未通知过 → 判定为完成
-        if (dshStreamingSeenAt && (Date.now() - dshStreamingSeenAt) > 1200 && !dshDoneNotified) {
-          dshDoneNotified = true;
-          dshStreamingSeenAt = 0;
+    function dshPollTaskDone() {
+      dshFetchActiveRunning().then(function (running) {
+        if (running === null) return;
+        if (dshWasRunning === true && running === false) {
+          dshWasRunning = false;
           if (window.AndroidBridge && window.AndroidBridge.notifyTaskDone) {
             window.AndroidBridge.notifyTaskDone();
           }
+        } else {
+          dshWasRunning = running;
         }
-      } catch (e) {}
+      });
     }
-    setInterval(dshWatchTaskDone, 500);
+    setInterval(dshPollTaskDone, 1200);
   } catch (e) {}
 })();
 """
