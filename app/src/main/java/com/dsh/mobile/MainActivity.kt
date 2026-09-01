@@ -1,11 +1,17 @@
 package com.dsh.mobile
 
+import android.Manifest
 import android.app.Dialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +32,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -59,6 +67,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    // 任务完成通知权限（Android 13+）。结果无需处理：未授权则通知静默跳过。
+    private val notifPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     private val fileChooserLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val callback = fileChooserCallback
@@ -85,6 +97,8 @@ class MainActivity : AppCompatActivity() {
 
         configureWebView()
         wireButtons()
+
+        maybeRequestNotificationPermission()
 
         val lastUrl = getSharedPreferences(PREFS, MODE_PRIVATE).getString(PREFS_LAST_URL, null)
         savedUrl = lastUrl
@@ -322,6 +336,59 @@ class MainActivity : AppCompatActivity() {
 
     private fun toast(resId: Int) = Toast.makeText(this, resId, Toast.LENGTH_SHORT).show()
 
+    // ------------------------------------------------------------- notifications
+
+    /** Android 13+ 需动态申请「通知」权限；未授权则通知功能静默降级。 */
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    /** 在桌面端「任务完成」时发一条系统通知，点击回到主界面。 */
+    private fun postTaskDoneNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return // 未授权，跳过
+        }
+
+        val channelId = CHANNEL_TASK_DONE
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId, getString(R.string.notification_channel_task_done),
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            manager.createNotificationChannel(channel)
+        }
+
+        val launch = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle(getString(R.string.notification_task_done_title))
+            .setContentText(getString(R.string.notification_task_done_text))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(launch)
+            .build()
+
+        try {
+            manager.notify(NOTIF_ID_TASK_DONE, notification)
+        } catch (e: Exception) {
+            // 通知失败不致命（例如部分 OEM 系统限制），忽略。
+        }
+    }
+
     /** 给注入的网页脚本调用的原生桥：提供触感反馈、提示与日志。 */
     private inner class DSHBridge {
         @JavascriptInterface
@@ -332,6 +399,12 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun toast(message: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show() }
+        }
+
+        /** 网页检测到 DeepSeek 回合完成（回复停止）时，发一条系统通知。 */
+        @JavascriptInterface
+        fun notifyTaskDone() {
+            runOnUiThread { postTaskDoneNotification() }
         }
 
         /** 选图后弹出文字输入框，用户填写描述，确定后回传页面发送。 */
@@ -373,6 +446,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREFS = "dsh_mobile"
         private const val PREFS_LAST_URL = "last_url"
+
+        // 任务完成通知
+        private const val CHANNEL_TASK_DONE = "dsh_task_done"
+        private const val NOTIF_ID_TASK_DONE = 1001
 
         /**
          * 注入到 DSH 聊天页的脚本：
@@ -623,6 +700,34 @@ class MainActivity : AppCompatActivity() {
 
     install();
     setInterval(install, 1000);
+
+    // ---------- 任务完成通知 ----------
+    // DSH 网页在 assistant 消息流式输出时给元素加 data-streaming="true"；
+    // 回合结束（data.status 不再是 running）后该属性被移除。轮询捕捉
+    // 「出现 → 消失」的转换，即认为一次 DeepSeek 回复完成，通知原生侧发系统通知。
+    var dshStreamingSeenAt = 0;
+    var dshDoneNotified = false;
+    function dshAnyStreaming() {
+      return document.querySelectorAll('[data-streaming]').length > 0;
+    }
+    function dshWatchTaskDone() {
+      try {
+        if (dshAnyStreaming()) {
+          dshStreamingSeenAt = Date.now();
+          dshDoneNotified = false;          // 新一轮开始，允许再次通知
+          return;
+        }
+        // 曾处于生成中，且停止超过 1.2s 且本次未通知过 → 判定为完成
+        if (dshStreamingSeenAt && (Date.now() - dshStreamingSeenAt) > 1200 && !dshDoneNotified) {
+          dshDoneNotified = true;
+          dshStreamingSeenAt = 0;
+          if (window.AndroidBridge && window.AndroidBridge.notifyTaskDone) {
+            window.AndroidBridge.notifyTaskDone();
+          }
+        }
+      } catch (e) {}
+    }
+    setInterval(dshWatchTaskDone, 500);
   } catch (e) {}
 })();
 """

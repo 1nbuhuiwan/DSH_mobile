@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- 触感反馈 -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 任务完成通知（Android 13+ 需运行时授权） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- 声明相机硬件为可选：无相机设备也能（弱化）使用地址栏浏览器 -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />

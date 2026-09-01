@@ -28,4 +28,8 @@
     <string name="image_caption_hint">输入描述文字（可留空）</string>
     <string name="image_send">发送</string>
     <string name="image_cancel">取消</string>
+
+    <string name="notification_channel_task_done">任务完成提醒</string>
+    <string name="notification_task_done_title">任务完成</string>
+    <string name="notification_task_done_text">DeepSeek 已完成本次回复</string>
 </resources>
